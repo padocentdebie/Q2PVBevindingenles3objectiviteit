@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTV Training 2026 - FIX</title>
+    <title>BTV 2026 - Objectiviteitstraining</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, push, update, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyBRq1HFmhrpW_EMMZwpURrbTArz-L5iWT4",
@@ -19,126 +19,134 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        const casusData = {
+            'A': { t: 'CASUS A: VERDRIET', img: 'https://r.jina.ai/i/0101918aa0c4700085d70e6a88e9995c', ph: "Beschrijf de ogen, de mond en de handen...", model: "Rode ogen, traanvocht, geklemd zakdoekje, haperende stem." },
+            'B': { t: 'CASUS B: PANIEK', img: 'https://r.jina.ai/i/0101918aa0c670008a090e50f555d45d', ph: "Beschrijf de gezichtsuitdrukking en de houding...", model: "Handen in het haar, opengesperde ogen (wit zichtbaar), open mond." },
+            'C': { t: 'CASUS C: MASKERING', img: 'https://r.jina.ai/i/0101918aa0c87000b064d7c043e06a5b', ph: "Beschrijf de blik en de lichaamshouding...", model: "Afgewende blik, samengeperste lippen, strak gekruiste armen." }
+        };
+
         window.login = () => {
-            const naam = document.getElementById('naam').value;
-            if(!naam) return alert("Naam invullen.");
-            document.getElementById('auth-scherm').style.display = 'none';
+            const voornaam = document.getElementById('naam').value;
+            if(!voornaam) return alert("Vul je voornaam in om te starten.");
+            document.getElementById('auth-scherm').classList.add('hidden');
             document.getElementById('hoofd-scherm').classList.remove('hidden');
-            document.querySelectorAll('.verbalisant-naam').forEach(e => e.innerText = naam);
+            window.voornaam = voornaam;
             switchCasus('A');
         };
 
-        window.activeCasus = 'A';
-        window.switchCasus = (casusId) => {
-            window.activeCasus = casusId;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-white', 'text-blue-900', 'border-yellow-500'));
-            document.getElementById('tab-'+casusId).classList.add('bg-white', 'text-blue-900', 'border-yellow-500');
-            
-            const scenarios = {
-                'A': {
-                    tekst: 'CASUS A: SLECHT NIEUWS. De vrouw hoort dat haar partner zwaargewond is.',
-                    img: 'https://images.pexels.com/photos/4101143/pexels-photo-4101143.jpeg?auto=compress&cs=tinysrgb&w=800'
-                },
-                'B': {
-                    tekst: 'CASUS B: PANIEK. De man is zijn kind kwijt in een druk park.',
-                    img: 'https://images.pexels.com/photos/4553611/pexels-photo-4553611.jpeg?auto=compress&cs=tinysrgb&w=800'
-                },
-                'C': {
-                    tekst: 'CASUS C: MASKERING. De vrouw reageert onverschillig op vragen.',
-                    img: 'https://images.pexels.com/photos/4100484/pexels-photo-4100484.jpeg?auto=compress&cs=tinysrgb&w=800'
-                }
-            };
-
-            const target = scenarios[casusId];
-            document.getElementById('casus-scenario').innerText = target.tekst;
-            document.getElementById('casus-beeld').src = target.img;
-            
-            // Backup als de foto niet laadt: laat een tekst-box zien
-            document.getElementById('casus-beeld').onerror = function() {
-                this.src = `https://placehold.co/800x400/002d5e/white?text=BEELD+BIJ+${target.tekst.split(':')[1]}`;
-            };
-
-            initFeed(casusId);
-        };
-
-        window.checkGrammatica = () => {
-            const input = document.getElementById('pv-input').value.toLowerCase();
-            const feedback = document.getElementById('checker-msg');
-            const verboden = [" heb ", " ben ", " was ", " werd ", " heeft ", " wordt ", " had ", " waren ", " is "];
-            const fout = verboden.some(w => input.includes(w)) || input.split(/\s+/).some(w => w.startsWith("ge") && w.length > 4);
-
-            if (fout) {
-                feedback.innerHTML = "⚠️ Gebruik actieve verleden tijd (Ik zag / Ik hoorde). Geen 'is', 'was' of 'ge-'.";
-                feedback.className = "mt-2 p-2 bg-red-100 text-red-700 text-[10px] rounded font-bold uppercase";
-            } else if (input.length > 10) {
-                feedback.innerHTML = "✓ Actieve vorm gedetecteerd.";
-                feedback.className = "mt-2 p-2 bg-green-100 text-green-700 text-[10px] rounded font-bold uppercase";
-            } else { feedback.innerHTML = ""; }
+        window.switchCasus = (id) => {
+            window.activeCasus = id;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-white', 'text-blue-900', 'border-yellow-500', 'shadow-md'));
+            document.getElementById('tab-'+id).classList.add('bg-white', 'text-blue-900', 'border-yellow-500', 'shadow-md');
+            document.getElementById('casus-scenario').innerText = casusData[id].t;
+            document.getElementById('casus-beeld').src = casusData[id].img;
+            document.getElementById('pv-input').placeholder = casusData[id].ph;
+            initFeed(id);
         };
 
         window.verstuurPV = () => {
-            const txt = document.getElementById('pv-input').value;
-            const naam = document.getElementById('naam').value;
-            if(!txt) return;
-            push(ref(db, `les_emoties/casus_${window.activeCasus}`), { naam, tekst: txt, tijd: Date.now() });
+            const tekst = document.getElementById('pv-input').value;
+            if(tekst.length < 5) return alert("Typ eerst je waarneming.");
+            push(ref(db, `btv_2026/casus_${window.activeCasus}`), {
+                naam: window.voornaam,
+                tekst: tekst,
+                score_obj: 0,
+                score_subj: 0,
+                tijd: Date.now()
+            });
             document.getElementById('pv-input').value = "";
-            document.getElementById('checker-msg').innerHTML = "";
         };
 
-        function initFeed(casusId) {
-            onValue(ref(db, `les_emoties/casus_${casusId}`), (snapshot) => {
+        window.giveFeedback = (postId, type) => {
+            const postRef = ref(db, `btv_2026/casus_${window.activeCasus}/${postId}`);
+            const updateData = {};
+            updateData[type === 'obj' ? 'score_obj' : 'score_subj'] = increment(1);
+            update(postRef, updateData);
+        };
+
+        function initFeed(id) {
+            onValue(ref(db, `btv_2026/casus_${id}`), (snap) => {
                 const container = document.getElementById('live-feed');
                 container.innerHTML = "";
-                const data = snapshot.val();
-                if(data) {
-                    Object.values(data).reverse().forEach(post => {
-                        container.innerHTML += `<div class="bg-white p-3 rounded shadow-sm border mb-2"><div class="text-[8px] font-black text-slate-400 uppercase">${post.naam}</div><p class="text-xs italic">"${post.tekst}"</p></div>`;
-                    });
-                }
+                const data = snap.val();
+                if(!data) return;
+                Object.keys(data).reverse().forEach(key => {
+                    const post = data[key];
+                    container.innerHTML += `
+                        <div class="bg-white p-4 rounded-xl shadow-sm border mb-4 border-slate-200">
+                            <div class="flex justify-between text-[9px] font-black text-slate-400 uppercase mb-2 italic">
+                                <span>Student: ${post.naam}</span>
+                                <div class="flex gap-2 font-bold">
+                                    <span class="text-green-600">✓ Wetenschap: ${post.score_obj || 0}</span>
+                                    <span class="text-red-600">✗ Aanname: ${post.score_subj || 0}</span>
+                                </div>
+                            </div>
+                            <p class="text-xs italic mb-4 text-slate-800 leading-tight">"${post.tekst}"</p>
+                            <div class="bg-slate-50 p-2 rounded-lg border-2 border-dashed border-slate-200 flex flex-col gap-2">
+                                <span class="text-[7px] font-bold text-slate-500 uppercase italic">Beoordeel de objectiviteit van ${post.naam}:</span>
+                                <div class="flex gap-2">
+                                    <button onclick="giveFeedback('${key}', 'obj')" class="flex-1 bg-green-500 text-white text-[8px] font-black p-2 rounded uppercase shadow hover:bg-green-600">Wetenschap</button>
+                                    <button onclick="giveFeedback('${key}', 'subj')" class="flex-1 bg-red-500 text-white text-[8px] font-black p-2 rounded uppercase shadow hover:bg-red-600">Aanname</button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
             });
         }
     </script>
 </head>
-<body class="bg-slate-100 min-h-screen">
+<body class="bg-slate-100 font-sans text-slate-900 leading-tight">
 
-    <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border-t-8 border-yellow-500">
-            <h1 class="font-black text-2xl text-blue-900 mb-6 uppercase italic text-center italic">BTV Training</h1>
-            <input type="text" id="naam" placeholder="Voornaam" class="w-full border-2 p-4 rounded-xl mb-6 font-bold text-center outline-none border-slate-200 focus:border-blue-900">
-            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-4 rounded-xl font-black uppercase tracking-widest shadow-xl">Start Les</button>
+    <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6 text-center">
+        <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-sm w-full border-t-[12px] border-yellow-500">
+            <h1 class="font-black text-3xl text-blue-900 mb-2 uppercase italic tracking-tighter">BTV 2026</h1>
+            <p class="text-[10px] font-bold text-slate-400 mb-10 uppercase tracking-[0.3em] italic">Objectieve Waarneming</p>
+            <input type="text" id="naam" placeholder="Jouw voornaam" class="w-full border-2 p-5 rounded-2xl mb-6 font-bold text-center outline-none focus:border-blue-900 shadow-inner bg-slate-50">
+            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all">De les starten</button>
         </div>
     </div>
 
-    <div id="hoofd-scherm" class="hidden max-w-5xl mx-auto p-4 md:p-8 space-y-6">
+    <div id="hoofd-scherm" class="hidden max-w-6xl mx-auto p-4 md:p-10 space-y-8">
         
-        <header class="bg-[#002d5e] text-white p-4 rounded-2xl flex justify-between items-center border-b-4 border-yellow-500 shadow-lg">
-            <div class="font-black italic uppercase text-[10px] tracking-widest">Verbalisant: <span class="verbalisant-naam text-yellow-400"></span></div>
-            <div class="text-[8px] font-black uppercase animate-pulse">Live Database Verbonden</div>
-        </header>
+        <div class="grid md:grid-cols-2 gap-6">
+            <section class="bg-[#002d5e] text-white p-6 rounded-3xl shadow-xl border-l-[10px] border-yellow-500">
+                <h2 class="font-black uppercase text-[10px] mb-3 tracking-widest text-yellow-400 underline decoration-2">Informatie: Wetenschap</h2>
+                <div class="text-[11px] space-y-3 opacity-95 italic font-medium">
+                    <p>Beschrijf nooit emoties (bijv. "hij is boos"). Dat is een <b>conclusie</b>.</p>
+                    <p>Beschrijf alleen de <b>wetenschap</b>: wat neem je fysiek waar? Gebruik de actieve verleden tijd: "Ik zag dat...", "Ik hoorde dat...".</p>
+                </div>
+            </section>
+            <section class="bg-white p-6 rounded-3xl shadow-xl border-l-[10px] border-blue-900">
+                <h2 class="font-black uppercase text-[10px] mb-3 tracking-widest text-blue-900 underline decoration-2">Instructie</h2>
+                <div class="text-[11px] text-slate-600 space-y-3 font-bold">
+                    <p>1. Kies een casus en beschrijf de foto objectief.</p>
+                    <p>2. Dien je tekst in; deze verschijnt direct in de livefeed.</p>
+                    <p>3. Beoordeel daarna je collega's: schrijven zij feiten (wetenschap) of meningen (aannames)?</p>
+                </div>
+            </section>
+        </div>
 
-        <nav class="flex gap-1">
-            <button onclick="switchCasus('A')" id="tab-A" class="tab-btn px-4 py-2 rounded-t-lg font-black uppercase text-[10px] tracking-tighter border-b-4 border-transparent bg-slate-200 transition-all">A: Verdriet</button>
-            <button onclick="switchCasus('B')" id="tab-B" class="tab-btn px-4 py-2 rounded-t-lg font-black uppercase text-[10px] tracking-tighter border-b-4 border-transparent bg-slate-200 transition-all">B: Paniek</button>
-            <button onclick="switchCasus('C')" id="tab-C" class="tab-btn px-4 py-2 rounded-t-lg font-black uppercase text-[10px] tracking-tighter border-b-4 border-transparent bg-slate-200 transition-all">C: Maskering</button>
+        <nav class="flex gap-2">
+            <button onclick="switchCasus('A')" id="tab-A" class="tab-btn px-8 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all">Casus A</button>
+            <button onclick="switchCasus('B')" id="tab-B" class="tab-btn px-8 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all">Casus B</button>
+            <button onclick="switchCasus('C')" id="tab-C" class="tab-btn px-8 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all">Casus C</button>
         </nav>
 
-        <div class="grid lg:grid-cols-2 gap-8 items-start">
-            <section class="bg-white p-6 rounded-b-2xl rounded-tr-2xl shadow-xl border-t-8 border-blue-900">
-                <p id="casus-scenario" class="text-[10px] font-black uppercase text-blue-900 mb-4 bg-blue-50 p-2 rounded tracking-tight"></p>
-                
-                <div class="h-64 mb-6 bg-slate-200 rounded-xl overflow-hidden shadow-inner border border-slate-300">
-                    <img id="casus-beeld" src="" class="w-full h-full object-cover">
+        <div class="grid lg:grid-cols-2 gap-10 items-start">
+            <section class="bg-white p-8 rounded-b-3xl rounded-tr-3xl shadow-2xl border-t-[10px] border-blue-900">
+                <p id="casus-scenario" class="text-[10px] font-black text-blue-900 mb-4 bg-blue-50 p-3 rounded-lg tracking-widest text-center uppercase italic"></p>
+                <div class="h-80 mb-8 bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-50 shadow-inner group">
+                    <img id="casus-beeld" src="" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
                 </div>
-                
-                <textarea id="pv-input" oninput="checkGrammatica()" class="w-full h-32 border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs leading-relaxed" placeholder="Ik zag dat..."></textarea>
-                <div id="checker-msg"></div>
-                
-                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-4 mt-4 rounded-xl font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-blue-900 transition-all shadow-xl">Inzenden</button>
+                <textarea id="pv-input" class="w-full h-40 border-2 border-slate-100 p-6 rounded-2xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs mb-4 shadow-inner" placeholder=""></textarea>
+                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-blue-900 transition-all shadow-xl">Inleveren voor review</button>
             </section>
 
-            <section class="bg-slate-200/50 p-4 rounded-2xl min-h-[400px]">
-                <h2 class="font-black text-blue-900 uppercase italic mb-4 text-[10px] tracking-widest">Klas Feed:</h2>
-                <div id="live-feed"></div>
+            <section class="bg-slate-200/50 p-8 rounded-[40px] h-[750px] overflow-y-auto border-4 border-white shadow-inner">
+                <h2 class="font-black text-blue-900 uppercase italic mb-6 text-[11px] tracking-widest flex items-center gap-3">
+                    <span class="h-3 w-3 bg-green-500 rounded-full animate-ping"></span> Live Eenheidsfeed
+                </h2>
+                <div id="live-feed" class="space-y-4"></div>
             </section>
         </div>
     </div>
