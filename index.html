@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTV - Objectiviteitstraining 2026</title>
+    <title>BTV - Objectiviteit & Emoties 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, push, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // CONFIGURATIE (Jouw project)
         const firebaseConfig = {
@@ -20,70 +20,84 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- AUTH & INITIALISATIE ---
+        // --- AUTH & CORE ---
         window.login = () => {
             const naam = document.getElementById('naam').value;
-            const eenheid = document.getElementById('eenheid').value;
-            if(!naam || !eenheid) return alert("Vul uw gegevens in, verbalisant.");
-            
+            if(!naam) return alert("Vul uw achternaam in, verbalisant.");
             document.getElementById('auth-scherm').style.display = 'none';
             document.getElementById('hoofd-scherm').classList.remove('hidden');
-            document.getElementById('status-bar').innerText = `Verbalisant: ${naam} | Eenheid: ${eenheid}`;
-            
-            initFeed(eenheid);
+            document.querySelectorAll('.verbalisant-naam').forEach(e => e.innerText = naam);
+            switchCasus('A'); // Start met Casus A
         };
 
-        // --- GRAMMATICA CHECKER (INTERACTIEF) ---
+        // --- CASUS SCHAKELEN ---
+        window.activeCasus = 'A';
+        window.switchCasus = (casusId) => {
+            window.activeCasus = casusId;
+            // Update Tabs
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('border-yellow-500', 'text-yellow-500'));
+            document.getElementById('tab-'+casusId).classList.add('border-yellow-500', 'text-yellow-500');
+            
+            // Update Content (Beeld & Scenario)
+            const scenarioText = {
+                'A': 'U voert een slecht nieuws gesprek. De vrouw hoort zojuist dat haar partner ernstig gewond is.',
+                'B': 'U bent in een park. De man doet aangifte van de vermissing van zijn 6-jarige dochter.',
+                'C': 'Op het bureau doet deze vrouw aangifte van diefstal. Ze oogt onverschillig en afwezig.'
+            };
+            const imageSrc = {
+                'A': 'image_4.png',
+                'B': 'image_5.png',
+                'C': 'image_6.png'
+            };
+            document.getElementById('casus-scenario').innerText = scenarioText[casusId];
+            document.getElementById('casus-beeld').src = imageSrc[casusId];
+            
+            // Update Live Feed voor deze casus
+            initFeed(casusId);
+        };
+
+        // --- GRAMMATICA CHECKER ---
         window.checkGrammatica = () => {
             const input = document.getElementById('pv-input').value.toLowerCase();
-            const feedback = document.getElementById('grammatica-feedback');
-            
+            const feedback = document.getElementById('checker-msg');
             const verbodenHulp = [" heb ", " ben ", " was ", " werd ", " heeft ", " wordt ", " had ", " waren ", " is "];
             const heeftHulp = verbodenHulp.some(w => input.includes(w));
             const woorden = input.split(/\s+/);
             const heeftGeWoord = woorden.some(w => w.startsWith("ge") && w.length > 4);
 
             if (heeftHulp || heeftGeWoord) {
-                feedback.innerHTML = "⚠️ <b>Let op:</b> Gebruik de actieve verleden tijd. Geen hulpwerkwoorden of voltooid deelwoorden (ge-...). Typ: 'Ik zag' ipv 'Ik heb gezien'.";
+                feedback.innerHTML = "⚠️ <b>Let op:</b> Gebruik de actieve verleden tijd. Geen voltooid deelwoorden (ge-...) of hulpwerkwoorden. Schrijf: 'Ik zag' ipv 'Ik heb gezien'.";
                 feedback.className = "mt-3 p-3 bg-red-100 text-red-700 text-[10px] rounded-xl border border-red-200 font-bold uppercase italic";
             } else if (input.length > 15) {
-                feedback.innerHTML = "✓ Actieve vorm gedetecteerd. Dit is een goede basis voor een PV.";
+                feedback.innerHTML = "✓ Actieve vorm gedetecteerd. Goed objectief fundament.";
                 feedback.className = "mt-3 p-3 bg-green-100 text-green-700 text-[10px] rounded-xl border border-green-200 font-bold uppercase italic";
-            } else {
-                feedback.innerHTML = "";
-                feedback.className = "";
-            }
+            } else { feedback.innerHTML = feedback.className = ""; }
         };
 
         // --- DATA VERZENDEN ---
         window.verstuurPV = () => {
             const txt = document.getElementById('pv-input').value;
             const naam = document.getElementById('naam').value;
-            const eenheid = document.getElementById('eenheid').value;
+            const casus = window.activeCasus;
             if(!txt) return alert("Voer eerst uw waarnemingen in.");
-
-            push(ref(db, `les_objectiviteit/${eenheid}`), {
-                naam: naam,
-                tekst: txt,
-                tijd: Date.now()
-            });
+            push(ref(db, `les_emoties/casus_${casus}`), { naam, tekst: txt, tijd: Date.now() });
             document.getElementById('pv-input').value = "";
-            document.getElementById('grammatica-feedback').innerHTML = "";
-            alert("Uw waarneming is gedeeld met de eenheid.");
+            document.getElementById('checker-msg').innerHTML = "";
+            alert("Uw waarneming voor Casus " + casus + " is gedeeld.");
         };
 
-        // --- LIVE FEED ---
-        function initFeed(eenheid) {
-            onValue(ref(db, `les_objectiviteit/${eenheid}`), (snapshot) => {
+        // --- LIVE FEED per Casus ---
+        function initFeed(casusId) {
+            onValue(ref(db, `les_emoties/casus_${casusId}`), (snapshot) => {
                 const container = document.getElementById('live-feed');
                 container.innerHTML = "";
                 const data = snapshot.val();
                 if(data) {
                     Object.values(data).reverse().forEach(post => {
                         container.innerHTML += `
-                            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3 animate-fade-in">
-                                <div class="flex justify-between text-[9px] font-black text-slate-400 uppercase mb-2">
-                                    <span>${post.naam}</span>
+                            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-3 animate-fade-in">
+                                <div class="flex justify-between text-[8px] font-black text-slate-400 uppercase mb-2">
+                                    <span>Verbalisant ${post.naam}</span>
                                     <span>${new Date(post.tijd).toLocaleTimeString()}</span>
                                 </div>
                                 <p class="text-sm text-slate-800 italic">"${post.tekst}"</p>
@@ -93,80 +107,92 @@
             });
         }
     </script>
-
     <style>
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fade-in 0.3s ease-out; }
+        .font-pro { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
     </style>
 </head>
-<body class="bg-slate-100 font-sans min-h-screen">
+<body class="bg-slate-100 font-pro min-h-screen">
 
     <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6">
         <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border-t-8 border-yellow-500">
-            <h1 class="font-black text-2xl text-blue-900 mb-2 uppercase italic tracking-tighter text-center">BTV Training</h1>
-            <p class="text-[10px] font-black text-slate-400 mb-8 uppercase tracking-[0.2em] text-center">Objectieve Waarneming</p>
-            <input type="text" id="naam" placeholder="Achternaam verbalisant" class="w-full border-2 p-4 rounded-2xl mb-4 font-bold outline-none focus:border-blue-900">
-            <select id="eenheid" class="w-full border-2 p-4 rounded-2xl mb-8 font-bold outline-none bg-white">
-                <option value="">Selecteer Eenheid</option>
-                <option>Delta</option><option>Echo</option><option>Foxtrot</option>
-            </select>
-            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-blue-900 transition-all shadow-xl">Start Sessie</button>
+            <h1 class="font-black text-2xl text-blue-900 mb-2 uppercase italic text-center">BTV Training 2026</h1>
+            <p class="text-[10px] font-bold text-slate-400 mb-8 uppercase tracking-widest text-center">Objectiviteit & Emoties</p>
+            <input type="text" id="naam" placeholder="Achternaam verbalisant" class="w-full border-2 p-4 rounded-2xl mb-8 font-bold outline-none focus:border-blue-900">
+            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-5 rounded-2xl font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-blue-900 transition-all shadow-xl">Start Training</button>
         </div>
     </div>
 
-    <div id="hoofd-scherm" class="hidden max-w-5xl mx-auto p-4 md:p-8 space-y-8">
+    <div id="hoofd-scherm" class="hidden max-w-6xl mx-auto p-4 md:p-8 space-y-8">
         
-        <header class="bg-[#002d5e] text-white p-6 rounded-3xl flex justify-between items-center shadow-lg border-b-4 border-yellow-500">
-            <div id="status-bar" class="font-black italic uppercase text-[11px] tracking-widest"></div>
+        <header class="bg-[#002d5e] text-white p-6 rounded-3xl flex justify-between items-center shadow-xl border-b-4 border-yellow-500 sticky top-4 z-40">
+            <div class="font-black italic uppercase text-xs tracking-wider">Verbalisant: <span class="verbalisant-naam text-yellow-400"></span></div>
             <div class="flex items-center gap-2 text-[9px] font-black animate-pulse">
-                <span class="h-2 w-2 bg-green-500 rounded-full"></span> LIVE FEEDBACK ACTIEF
+                <span class="h-2 w-2 bg-green-500 rounded-full"></span> LIVE FEEDBACK
             </div>
         </header>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
-                <span class="text-[9px] font-black text-blue-900 uppercase bg-blue-50 px-2 py-1 rounded">1. De Situatie</span>
-                <img src="URL_FOTO_1" alt="Simulatie 1" class="rounded-xl h-44 w-full object-cover mt-3 border">
-            </div>
-            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
-                <span class="text-[9px] font-black text-blue-900 uppercase bg-blue-50 px-2 py-1 rounded">2. De Handeling</span>
-                <img src="URL_FOTO_2" alt="Simulatie 2" class="rounded-xl h-44 w-full object-cover mt-3 border">
-            </div>
-            <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200">
-                <span class="text-[9px] font-black text-blue-900 uppercase bg-blue-50 px-2 py-1 rounded">3. Het Gevolg</span>
-                <img src="URL_FOTO_3" alt="Simulatie 3" class="rounded-xl h-44 w-full object-cover mt-3 border">
-            </div>
+        <div class="grid md:grid-cols-2 gap-8">
+            <section class="bg-white p-6 rounded-2xl shadow border-l-4 border-blue-900">
+                <h2 class="font-black text-blue-900 uppercase italic text-xs tracking-widest mb-4 underline">Theorie: Emoties vs. Wetenschap</h2>
+                <div class="space-y-3 text-sm text-slate-700leading-relaxed">
+                    <p>Menselijke emoties (paniek, verdriet, onverschilligheid) zijn **conclusies**. De politiefunctionaris noteert *nooit* de conclusie, maar de **wetenschap**: de zintuiglijke waarnemingen die tot die conclusie leiden.</p>
+                    <p>U beschrijft uitsluitend wat u **ziet**, **hoort**, **ruikt** of **voelt** in de **actieve verleden tijd** (ik-vorm, geen voltooid deelwoord). </p>
+                    <div class="bg-slate-50 p-3 rounded-lg border italic text-[11px] mt-2">
+                        <strong>Fout:</strong> "De aangever was erg paniekerig." (Aanname)<br>
+                        <strong>Goed:</strong> "Ik zag dat de aangever zijn handen in het haar klemde en zijn ogen wijd opengesperd hield. Ik hoorde dat hij met overslaande stem sprak." (Wetenschap)
+                    </div>
+                </div>
+            </section>
+            <section class="bg-white p-6 rounded-2xl shadow border-l-4 border-yellow-500">
+                <h2 class="font-black text-yellow-500 uppercase italic text-xs tracking-widest mb-4 underline">Instructie: Wat te doen?</h2>
+                <div class="space-y-3 text-sm text-slate-700 leading-relaxed">
+                    <ol class="list-decimal list-inside space-y-1.5 font-medium">
+                        <li>Bekijk de drie casussen (A, B, C) via de tabbladen hieronder.</li>
+                        <li>Analyseer het beeld. Welke fysieke kenmerken leiden tot de emotie?</li>
+                        <li>Typ per casus uw objectieve waarnemingen in de actieve verleden tijd.</li>
+                        <li>De grammatica-checker geeft u **live feedback** op uw schrijfvorm.</li>
+                        <li>Klik op 'Indienen' om uw PV-onderdeel met de eenheid te delen.</li>
+                        <li>De live feed toont de waarnemingen van uw collega's. Leer van elkaars scherpte.</li>
+                    </ol>
+                </div>
+            </section>
         </div>
+
+        <nav class="border-b border-slate-200">
+            <ul class="flex gap-6 -mb-px text-xs font-black uppercase tracking-widest">
+                <li><button onclick="switchCasus('A')" id="tab-A" class="tab-btn pb-4 border-b-2 border-transparent transition-all">Casus A: Slecht Nieuws</button></li>
+                <li><button onclick="switchCasus('B')" id="tab-B" class="tab-btn pb-4 border-b-2 border-transparent transition-all">Casus B: Paniek</button></li>
+                <li><button onclick="switchCasus('C')" id="tab-C" class="tab-btn pb-4 border-b-2 border-transparent transition-all">Casus C: Maskering</button></li>
+            </ul>
+        </nav>
 
         <div class="grid lg:grid-cols-2 gap-8 items-start">
             
-            <section class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-blue-900 sticky top-8">
-                <h2 class="font-black text-blue-900 uppercase italic mb-2">Redenen van Wetenschap</h2>
-                <p class="text-[11px] text-slate-500 mb-6 font-bold uppercase tracking-tight">Beschrijf objectief (zintuiglijk) wat u waarnam op de beelden.</p>
+            <section class="bg-white p-8 rounded-3xl shadow-xl border-t-8 border-blue-900 sticky top-28 z-30">
+                <div class="mb-6">
+                    <span class="text-[9px] font-black text-blue-900 uppercase bg-blue-50 px-2.5 py-1 rounded-full">Scenario Verbalisant: <span class="verbalisant-naam"></span></span>
+                    <p id="casus-scenario" class="mt-3 text-sm italic text-slate-700 leading-relaxed"></p>
+                </div>
                 
+                <img id="casus-beeld" src="" alt="Casus Beeld" class="rounded-2xl h-64 w-full object-cover mb-8 border-2 border-slate-100 shadow-inner animate-fade-in">
+                
+                <h3 class="font-black text-blue-900 uppercase italic mb-2">Uw Objectieve Waarnemingen</h3>
                 <textarea id="pv-input" oninput="checkGrammatica()" 
-                    class="w-full h-56 border-2 border-slate-100 p-6 rounded-2xl outline-none focus:border-blue-900 shadow-inner bg-slate-50 font-mono text-sm leading-relaxed" 
-                    placeholder="Ik zag dat..."></textarea>
+                    class="w-full h-40 border-2 border-slate-100 p-6 rounded-2xl outline-none focus:border-blue-900 shadow-inner bg-slate-50 font-mono text-sm leading-relaxed" 
+                    placeholder="Ik zag dat... Ik hoorde dat..."></textarea>
                 
-                <div id="grammatica-feedback"></div>
+                <div id="checker-msg"></div>
                 
                 <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-5 mt-6 rounded-2xl font-black uppercase tracking-widest hover:bg-yellow-500 hover:text-blue-900 transition-all shadow-xl">
                     Indienen bij Eenheidsfeed
                 </button>
-
-                <div class="mt-8 pt-6 border-t border-slate-100">
-                    <h3 class="font-black text-[10px] text-slate-400 uppercase tracking-widest mb-4 italic">Checklist Verbalisant:</h3>
-                    <ul class="text-[10px] space-y-2 font-bold text-slate-600">
-                        <li class="flex items-center gap-2"><span class="text-blue-900">●</span> GEEN AANNAMES (NIET "HIJ WAS BOOS")</li>
-                        <li class="flex items-center gap-2"><span class="text-blue-900">●</span> ALLEEN WAARNEMINGEN (IK ZAG / HOORDE)</li>
-                        <li class="flex items-center gap-2"><span class="text-blue-900">●</span> ACTIEVE VERLEDEN TIJD (IK SLOEG / IK BELDE)</li>
-                    </ul>
-                </div>
             </section>
 
-            <section class="flex flex-col h-full">
+            <section class="flex flex-col h-full pt-4 lg:pt-0">
                 <h2 class="font-black text-blue-900 uppercase italic mb-6 text-xl tracking-tighter flex items-center gap-3">
-                    Inzendingen Eenheid
+                    Inzendingen Eenheid 
                     <div class="h-1 bg-blue-900 grow rounded-full opacity-10"></div>
                 </h2>
                 <div id="live-feed" class="min-h-[400px] pb-10">
