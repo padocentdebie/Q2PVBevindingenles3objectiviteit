@@ -20,12 +20,12 @@
         const db = getDatabase(app);
 
         const casusData = {
-            'A': { e: 'Verdriet', t: 'CASUS A: VERDRIET', img: 'https://images.unsplash.com/photo-1516585427167-9f4af9627e6c?q=80&w=500', k: "Rode/vochtige ogen, traanvocht over wangen, haperende stem, geklemd zakdoekje." },
-            'B': { e: 'Paniek', t: 'CASUS B: PANIEK', img: 'https://images.unsplash.com/photo-1511216335778-7cb8f49fa7a3?q=80&w=500', k: "Handen in het haar geklemd, oogwit (sclera) zichtbaar rondom iris, open mond." },
-            'C': { e: 'Maskering', t: 'CASUS C: MASKERING', img: 'https://images.unsplash.com/photo-1542103749-8ef59b94f47e?q=80&w=500', k: "Afgewende blik, lippen stijf op elkaar, armen strak over borst gekruist." },
-            'D': { e: 'Verliefd', t: 'CASUS D: VERLIEFD', img: 'https://images.unsplash.com/photo-1474552226712-ac0f0961a954?q=80&w=500', k: "Langdurig oogcontact, opgetrokken mondhoeken, naar voren gebogen romp." },
-            'E': { e: 'Alcohol', t: 'CASUS E: ALCOHOL', img: 'https://images.unsplash.com/photo-1597034335446-2810852f5596?q=80&w=500', k: "Bloeddoorlopen ogen, hangende oogleden, glazige blik, verslapte mondspieren." },
-            'F': { e: 'Drugs', t: 'CASUS F: DRUGS', img: 'https://images.unsplash.com/photo-1534313314376-a72289b6181e?q=80&w=500', k: "Extreem verwijde pupillen, gespannen kaakspieren, zweten (glimmende huid)." }
+            'A': { e: 'Verdriet', t: 'CASUS A: VERDRIET', img: 'https://r.jina.ai/i/0101918aa0c4700085d70e6a88e9995c', ph: "Focus op ogen, tranen, zakdoekje...", k: "Rode/vochtige ogen, traanvocht over wangen, haperende stem, geklemd zakdoekje." },
+            'B': { e: 'Paniek', t: 'CASUS B: PANIEK', img: 'https://r.jina.ai/i/0101918aa0c670008a090e50f555d45d', ph: "Focus op handen, oogwit, mond...", k: "Handen in het haar geklemd, oogwit (sclera) zichtbaar rondom iris, open mond." },
+            'C': { e: 'Maskering', t: 'CASUS C: MASKERING', img: 'https://r.jina.ai/i/0101918aa0c87000b064d7c043e06a5b', ph: "Focus op blik, lippen, armen...", k: "Afgewende blik, lippen stijf op elkaar gedrukt, armen strak over borst gekruist." },
+            'D': { e: 'Verliefd', t: 'CASUS D: VERLIEFD', img: 'https://r.jina.ai/i/0101a07090b2700095817d84f090d810', ph: "Focus op blikrichting, mondhoek, houding...", k: "Langdurig ononderbroken oogcontact, opgetrokken mondhoeken, naar voren gebogen romp." },
+            'E': { e: 'Alcohol', t: 'CASUS E: ALCOHOL', img: 'https://r.jina.ai/i/0101a07090b4700081f9b37a5050f830', ph: "Focus op oogkleur, oogleden, focus...", k: "Bloeddoorlopen (rode) ogen, hangende oogleden, glazige/onvaste blik, verslapte gezichtsspieren." },
+            'F': { e: 'Drugs', t: 'CASUS F: DRUGS', img: 'https://r.jina.ai/i/0101a07090b67000be087f90f23023e0', ph: "Focus op pupilgrootte, kaakspanning, transpiratie...", k: "Extreem verwijde of vernauwde pupillen, gespannen kaakspieren (kaakklem), zweten zonder inspanning." }
         };
 
         window.login = () => {
@@ -43,7 +43,7 @@
             document.getElementById('tab-'+id).classList.add('bg-white', 'text-blue-900', 'border-yellow-500', 'shadow-md');
             document.getElementById('casus-scenario').innerText = casusData[id].t;
             document.getElementById('casus-beeld').src = casusData[id].img;
-            document.getElementById('pv-input').placeholder = "Focus op de 'wetenschap': wat zie je fysiek aan deze persoon?";
+            document.getElementById('pv-input').placeholder = casusData[id].ph;
             initFeed(id);
         };
 
@@ -101,9 +101,9 @@
                                 </div>
                             </div>
                             <p class="text-xs italic mb-4 text-slate-800 border-l-2 border-blue-900 pl-3">"${post.tekst}"</p>
-                            <div class="flex gap-2">
-                                <button onclick="giveFeedback('${key}', 'obj')" class="flex-1 bg-green-500 text-white text-[8px] font-black p-2 rounded uppercase shadow-sm active:scale-95 transition-transform">Wetenschap</button>
-                                <button onclick="giveFeedback('${key}', 'subj')" class="flex-1 bg-red-500 text-white text-[8px] font-black p-2 rounded uppercase shadow-sm active:scale-95 transition-transform">Aanname</button>
+                            <div class="flex gap-2 text-center justify-center">
+                                <button onclick="giveFeedback('${key}', 'obj')" class="flex-1 bg-green-500 text-white text-[8px] font-black p-2 rounded uppercase shadow-sm">Wetenschap</button>
+                                <button onclick="giveFeedback('${key}', 'subj')" class="flex-1 bg-red-500 text-white text-[8px] font-black p-2 rounded uppercase shadow-sm">Aanname</button>
                             </div>
                         </div>`;
                 });
@@ -115,15 +115,14 @@
 
     <div id="leer-modal" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl max-w-2xl w-full p-8 shadow-2xl overflow-hidden border-t-8 border-green-500">
-            <h2 class="font-black text-2xl text-blue-900 mb-2 uppercase italic tracking-tighter">HET LEEROVERZICHT</h2>
-            <p class="text-[10px] text-slate-500 mb-6 font-bold uppercase tracking-widest italic">Gebruik deze termen in je Proces-verbaal:</p>
-            <div class="overflow-x-auto">
+            <h2 class="font-black text-2xl text-blue-900 mb-2 uppercase italic tracking-tighter">DIT HEB JE GELEERD</h2>
+            <div class="overflow-x-auto mt-4">
                 <table class="w-full text-left border-collapse">
-                    <thead><tr class="bg-slate-100 text-[10px] font-black uppercase text-blue-900 border-b-2 border-blue-900"><th class="p-2">Interpretatie</th><th class="p-2">Objectieve Kenmerken</th></tr></thead>
+                    <thead><tr class="bg-slate-100 text-[10px] font-black uppercase text-blue-900 border-b-2 border-blue-900"><th class="p-2">Emotie/Staat</th><th class="p-2">Wetenschappelijke Kenmerken</th></tr></thead>
                     <tbody id="tabel-body"></tbody>
                 </table>
             </div>
-            <button onclick="toggleLeeroverzicht()" class="mt-8 w-full bg-[#002d5e] text-white p-4 rounded-xl font-black uppercase tracking-widest shadow-xl">Terug naar de les</button>
+            <button onclick="toggleLeeroverzicht()" class="mt-8 w-full bg-[#002d5e] text-white p-4 rounded-xl font-black uppercase tracking-widest shadow-xl text-center">Terug naar de les</button>
         </div>
     </div>
 
@@ -139,45 +138,45 @@
     <div id="hoofd-scherm" class="hidden max-w-6xl mx-auto p-4 md:p-8 space-y-6">
         <header class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border-b-4 border-blue-900">
              <div class="font-black text-blue-900 uppercase italic text-[10px] tracking-widest flex items-center gap-4 italic">
-                Live Training Feed
-                <button id="leer-knop" onclick="toggleLeeroverzicht()" class="hidden bg-green-500 text-white px-3 py-1 rounded-full animate-pulse border-2 border-green-200 shadow-sm text-[8px] font-black">DIT HEB JE GELEERD</button>
+                Live Feedback Feed
+                <button id="leer-knop" onclick="toggleLeeroverzicht()" class="hidden bg-green-500 text-white px-3 py-1 rounded-full animate-pulse border-2 border-green-200 shadow-sm text-[8px] font-black text-center">DIT HEB JE GELEERD</button>
              </div>
-             <button onclick="resetDatabase()" class="text-[8px] font-black text-red-400 uppercase border border-red-100 px-3 py-1 rounded-full hover:bg-red-500 hover:text-white transition-all text-center">Reset Database</button>
+             <button onclick="resetDatabase()" class="text-[8px] font-black text-red-400 uppercase border border-red-100 px-3 py-1 rounded-full hover:bg-red-500 hover:text-white transition-all text-center text-center">Reset Database</button>
         </header>
 
         <div class="grid md:grid-cols-2 gap-4">
-            <section class="bg-[#002d5e] text-white p-4 rounded-2xl border-l-8 border-yellow-500">
-                <h2 class="font-black uppercase text-[9px] mb-1 tracking-widest text-yellow-400 italic">Wetenschap</h2>
-                <p class="text-[10px] italic opacity-90 leading-relaxed">Beschrijf kenmerken, geen conclusies. "Ik zag dat de pupillen..." i.p.v. "Hij was onder invloed".</p>
+            <section class="bg-[#002d5e] text-white p-4 rounded-2xl border-l-8 border-yellow-500 text-center">
+                <h2 class="font-black uppercase text-[9px] mb-1 tracking-widest text-yellow-400 italic text-center">Theorie</h2>
+                <p class="text-[10px] italic opacity-90 leading-relaxed text-center">Vang geen emoties, vang kenmerken. Gebruik "Ik zag dat de pupillen..." i.p.v. "Hij was onder invloed".</p>
             </section>
-            <section class="bg-white p-4 rounded-2xl border-l-8 border-blue-900">
-                <h2 class="font-black uppercase text-[9px] mb-1 tracking-widest text-blue-900 italic">De Opdracht</h2>
-                <p class="text-[10px] font-bold text-slate-600 leading-relaxed italic">Casus kiezen > Waarneming typen > Collega's feedback geven.</p>
+            <section class="bg-white p-4 rounded-2xl border-l-8 border-blue-900 text-center">
+                <h2 class="font-black uppercase text-[9px] mb-1 tracking-widest text-blue-900 italic text-center">Instructie</h2>
+                <p class="text-[10px] font-bold text-slate-600 leading-relaxed italic text-center">Casus kiezen > Waarneming typen > Collega's feedback geven.</p>
             </section>
         </div>
 
-        <nav class="flex gap-1 overflow-x-auto pb-2 no-scrollbar">
-            <button onclick="switchCasus('A')" id="tab-A" class="tab-btn px-5 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic">Verdriet</button>
-            <button onclick="switchCasus('B')" id="tab-B" class="tab-btn px-5 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic">Paniek</button>
-            <button onclick="switchCasus('C')" id="tab-C" class="tab-btn px-5 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-center">Maskering</button>
-            <button onclick="switchCasus('D')" id="tab-D" class="tab-btn px-5 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-pink-600">Verliefd</button>
-            <button onclick="switchCasus('E')" id="tab-E" class="tab-btn px-5 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-orange-600">Alcohol</button>
-            <button onclick="switchCasus('F')" id="tab-F" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-purple-600">Drugs</button>
+        <nav class="flex gap-1 overflow-x-auto pb-2 no-scrollbar text-center">
+            <button onclick="switchCasus('A')" id="tab-A" class="tab-btn px-4 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic">Verdriet</button>
+            <button onclick="switchCasus('B')" id="tab-B" class="tab-btn px-4 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic">Paniek</button>
+            <button onclick="switchCasus('C')" id="tab-C" class="tab-btn px-4 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic">Maskering</button>
+            <button onclick="switchCasus('D')" id="tab-D" class="tab-btn px-4 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-pink-600">Verliefd</button>
+            <button onclick="switchCasus('E')" id="tab-E" class="tab-btn px-4 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-orange-600">Alcohol</button>
+            <button onclick="switchCasus('F')" id="tab-F" class="tab-btn px-4 py-3 rounded-t-xl font-black uppercase text-[9px] bg-slate-200 transition-all whitespace-nowrap text-center italic text-purple-600">Drugs</button>
         </nav>
 
-        <div class="grid lg:grid-cols-2 gap-8 items-start">
+        <div class="grid lg:grid-cols-2 gap-8 items-start text-center">
             <section class="bg-white p-6 rounded-b-2xl rounded-tr-2xl shadow-xl border-t-[8px] border-blue-900 text-center">
                 <p id="casus-scenario" class="text-[9px] font-black text-blue-900 mb-4 bg-blue-50 p-2 rounded-lg text-center uppercase italic text-center"></p>
                 <div class="h-72 mb-6 bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-50 shadow-inner text-center">
                     <img id="casus-beeld" src="" class="w-full h-full object-cover text-center">
                 </div>
-                <textarea id="pv-input" class="w-full h-32 border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs mb-4 shadow-inner text-center italic" placeholder=""></textarea>
-                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all text-center">Inleveren & Feed checken</button>
+                <textarea id="pv-input" class="w-full h-32 border-2 border-slate-100 p-4 rounded-xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs mb-4 shadow-inner text-center" placeholder=""></textarea>
+                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-4 rounded-xl font-black uppercase tracking-widest shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all text-center">Inleveren & Bekijk Feed</button>
             </section>
 
-            <section class="bg-slate-200/50 p-6 rounded-[30px] h-[650px] overflow-y-auto border-4 border-white shadow-inner">
-                <h2 class="font-black text-blue-900 uppercase italic mb-4 text-[10px] tracking-widest flex items-center gap-3 italic">
-                    <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse text-center"></span> Live Eenheidsfeed
+            <section class="bg-slate-200/50 p-6 rounded-[30px] h-[650px] overflow-y-auto border-4 border-white shadow-inner text-center">
+                <h2 class="font-black text-blue-900 uppercase italic mb-4 text-[10px] tracking-widest flex items-center gap-3 text-center">
+                    <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse text-center"></span> Eenheidsfeed
                 </h2>
                 <div id="live-feed" class="space-y-4 text-center"></div>
             </section>
