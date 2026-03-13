@@ -10,6 +10,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, onValue, push, update, increment, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // Firebase Configuratie
         const firebaseConfig = {
             apiKey: "AIzaSyBRq1HFmhrpW_EMMZwpURrbTArz-L5iWT4",
             databaseURL: "https://pvaangifteinleveren-77dbe-default-rtdb.europe-west1.firebasedatabase.app/",
@@ -29,81 +30,114 @@
         };
 
         window.login = () => {
-            const voornaam = document.getElementById('naam').value;
+            const voornaam = document.getElementById('naam').value.trim();
             if(!voornaam) return alert("Vul je voornaam in.");
+            window.voornaam = voornaam;
             document.getElementById('auth-scherm').classList.add('hidden');
             document.getElementById('hoofd-scherm').classList.remove('hidden');
-            window.voornaam = voornaam;
             switchCasus('1');
+            initFeed();
         };
 
         window.switchCasus = (id) => {
             window.activeCasus = id;
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-white', 'text-blue-900', 'border-yellow-500', 'shadow-md'));
-            document.getElementById('tab-'+id).classList.add('bg-white', 'text-blue-900', 'border-yellow-500', 'shadow-md');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-white', 'text-blue-900', 'border-blue-900', 'shadow-md'));
+            document.getElementById('tab-'+id).classList.add('bg-white', 'text-blue-900', 'border-blue-900', 'shadow-md');
             document.getElementById('casus-titel').innerText = "ANALYSEER CASUS " + id;
             document.getElementById('casus-beeld').src = casusData[id].img;
             document.getElementById('pv-input').placeholder = casusData[id].ph;
-            initFeed(id);
         };
 
         window.verstuurPV = () => {
-            const tekst = document.getElementById('pv-input').value;
+            const tekst = document.getElementById('pv-input').value.trim();
             if(tekst.length < 5) return alert("Typ eerst je waarneming.");
-            push(ref(db, `btv_2026/casus_${window.activeCasus}`), {
+            
+            push(ref(db, `btv_2026/live_feed`), {
                 naam: window.voornaam,
                 tekst: tekst,
+                correcteCasus: window.activeCasus,
                 score_obj: 0,
                 score_subj: 0,
                 tijd: Date.now()
             });
+            
             document.getElementById('pv-input').value = "";
             document.getElementById('leer-knop').classList.remove('hidden');
+            alert("Ingezonden voor review!");
+        };
+
+        window.checkMatch = (postId, gekozenId, werkelijkeId) => {
+            if(gekozenId === werkelijkeId) {
+                document.getElementById(`match-zone-${postId}`).innerHTML = `
+                    <div class="bg-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg animate-pulse">
+                        <div class="flex items-center gap-3">
+                            <img src="${casusData[gekozenId].img}" class="w-12 h-12 rounded-lg object-cover border-2 border-white/20">
+                            <p class="text-[10px] font-black uppercase">Correcte Match! Beoordeel nu:</p>
+                        </div>
+                        <span class="text-xl">✓</span>
+                    </div>`;
+                document.getElementById(`feedback-zone-${postId}`).classList.remove('hidden');
+            } else {
+                alert("FOUT! Deze tekst beschrijft een andere situatie. Kijk goed naar de details.");
+            }
+        };
+
+        window.giveFeedback = (postId, type) => {
+            update(ref(db, `btv_2026/live_feed/${postId}`), {
+                [type === 'obj' ? 'score_obj' : 'score_subj']: increment(1)
+            });
         };
 
         window.toggleLeeroverzicht = () => {
             const modal = document.getElementById('leer-modal');
             modal.classList.toggle('hidden');
             const tabelBody = document.getElementById('tabel-body');
-            tabelBody.innerHTML = "";
-            Object.keys(casusData).forEach(key => {
-                const c = casusData[key];
-                tabelBody.innerHTML += `<tr class="border-b text-[10px]"><td class="p-2 font-black text-blue-900 uppercase">Casus ${key}: ${c.e}</td><td class="p-2 italic text-slate-600">${c.k}</td></tr>`;
-            });
-        };
-
-        window.giveFeedback = (postId, type) => {
-            const postRef = ref(db, `btv_2026/casus_${window.activeCasus}/${postId}`);
-            const updateData = {};
-            updateData[type === 'obj' ? 'score_obj' : 'score_subj'] = increment(1);
-            update(postRef, updateData);
+            tabelBody.innerHTML = Object.keys(casusData).map(key => `
+                <tr class="border-b text-[10px]">
+                    <td class="p-2 font-black text-blue-900 uppercase">Casus ${key}</td>
+                    <td class="p-2 italic text-slate-600">${casusData[key].k}</td>
+                </tr>`).join('');
         };
 
         window.resetDatabase = () => {
-            if(confirm("Alle inzendingen wissen voor de volgende groep?")) remove(ref(db, `btv_2026`));
+            if(confirm("Alle inzendingen wissen?")) remove(ref(db, `btv_2026`));
         };
 
-        function initFeed(id) {
-            onValue(ref(db, `btv_2026/casus_${id}`), (snap) => {
+        function initFeed() {
+            onValue(ref(db, `btv_2026/live_feed`), (snap) => {
                 const container = document.getElementById('live-feed');
                 container.innerHTML = "";
                 const data = snap.val();
                 if(!data) return;
+
                 Object.keys(data).reverse().forEach(key => {
                     const post = data[key];
                     container.innerHTML += `
-                        <div class="bg-white p-4 rounded-xl shadow-sm border mb-4 border-slate-200">
-                            <div class="flex justify-between text-[9px] font-black text-slate-400 uppercase mb-2">
-                                <span>Student: ${post.naam}</span>
-                                <div class="flex gap-2">
-                                    <span class="text-green-600 font-bold">✓ Redenen: ${post.score_obj || 0}</span>
-                                    <span class="text-red-600 font-bold">✗ Aanname: ${post.score_subj || 0}</span>
+                        <div class="bg-white p-6 rounded-[2rem] shadow-sm border-2 mb-6 border-slate-100" id="post-${key}">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${post.naam}</span>
+                                <div class="flex gap-2 text-[9px] font-black">
+                                    <span class="text-emerald-500">✓ ${post.score_obj || 0}</span>
+                                    <span class="text-rose-500">✗ ${post.score_subj || 0}</span>
                                 </div>
                             </div>
-                            <p class="text-xs italic mb-4 text-slate-800 border-l-2 border-blue-900 pl-3">"${post.tekst}"</p>
-                            <div class="flex gap-2">
-                                <button onclick="giveFeedback('${key}', 'obj')" class="flex-1 bg-green-500 text-white text-[8px] font-black p-2 rounded uppercase shadow-sm active:scale-95 transition-transform">Redenen van wetenschap</button>
-                                <button onclick="giveFeedback('${key}', 'subj')" class="flex-1 bg-red-500 text-white text-[8px] font-black p-2 rounded uppercase shadow-sm active:scale-95 transition-transform">Aanname</button>
+                            <p class="text-sm italic mb-6 text-slate-700 border-l-4 border-blue-900 pl-4 py-2 bg-slate-50 rounded-r-xl">"${post.tekst}"</p>
+                            
+                            <div id="match-zone-${key}" class="space-y-3">
+                                <p class="text-[8px] font-black text-center text-slate-400 uppercase">Kies de bijbehorende foto:</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    ${[1,2,3,4,5,6].map(n => `
+                                        <button onclick="checkMatch('${key}', '${n}', '${post.correcteCasus}')" class="relative rounded-xl overflow-hidden border-2 border-slate-100 hover:border-blue-500 transition-all">
+                                            <img src="${casusData[n].img}" class="w-full h-16 object-cover">
+                                            <div class="absolute bottom-0 right-0 bg-white/90 px-1 text-[8px] font-black">${n}</div>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+
+                            <div id="feedback-zone-${key}" class="hidden mt-4 pt-4 border-t flex gap-2">
+                                <button onclick="giveFeedback('${key}', 'obj')" class="flex-1 bg-emerald-500 text-white text-[8px] font-black p-3 rounded-xl uppercase">Redenen</button>
+                                <button onclick="giveFeedback('${key}', 'subj')" class="flex-1 bg-rose-500 text-white text-[8px] font-black p-3 rounded-xl uppercase">Aanname</button>
                             </div>
                         </div>`;
                 });
@@ -111,82 +145,51 @@
         }
     </script>
 </head>
-<body class="bg-slate-100 font-sans text-slate-900 leading-tight">
+<body class="bg-slate-50 font-sans text-slate-900 overflow-x-hidden">
 
-    <div id="leer-modal" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4 text-center">
-        <div class="bg-white rounded-3xl max-w-3xl w-full p-8 shadow-2xl border-t-8 border-green-500 overflow-y-auto max-h-full">
-            <h2 class="font-black text-2xl text-blue-900 mb-2 uppercase italic tracking-tighter">DIT HEB JE GELEERD</h2>
-            <div class="overflow-x-auto mt-4">
-                <table class="w-full text-left border-collapse">
-                    <thead><tr class="bg-slate-100 text-[10px] font-black uppercase text-blue-900 border-b-2 border-blue-900"><th class="p-2">Interpretatie (Aanname)</th><th class="p-2">Redenen van wetenschap</th></tr></thead>
-                    <tbody id="tabel-body"></tbody>
-                </table>
-            </div>
-            <button onclick="toggleLeeroverzicht()" class="mt-8 w-full bg-[#002d5e] text-white p-4 rounded-xl font-black uppercase tracking-widest shadow-xl">Terug naar de les</button>
+    <div id="leer-modal" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] max-w-2xl w-full p-8 shadow-2xl overflow-y-auto max-h-[85vh]">
+            <h2 class="font-black text-xl text-blue-900 mb-4 uppercase italic">Objectieve Kenmerken</h2>
+            <table class="w-full text-left border-collapse">
+                <thead><tr class="text-[9px] uppercase border-b-2 border-blue-900"><th class="p-2">Casus</th><th class="p-2">Wetenschap</th></tr></thead>
+                <tbody id="tabel-body"></tbody>
+            </table>
+            <button onclick="toggleLeeroverzicht()" class="mt-6 w-full bg-[#002d5e] text-white p-4 rounded-2xl font-black uppercase text-xs">Terug</button>
         </div>
     </div>
 
-    <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6 text-center">
-        <div class="bg-white p-10 rounded-[40px] shadow-2xl max-w-sm w-full border-t-[12px] border-yellow-500">
-            <h1 class="font-black text-3xl text-blue-900 mb-2 uppercase italic tracking-tighter italic">BTV 2026</h1>
-            <p class="text-[10px] font-bold text-slate-400 mb-10 uppercase tracking-[0.3em] italic text-center">Objectiviteitstraining</p>
-            <input type="text" id="naam" placeholder="Jouw voornaam" class="w-full border-2 p-5 rounded-2xl mb-6 font-bold text-center outline-none focus:border-blue-900 shadow-inner bg-slate-50">
-            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all text-center">Start de les</button>
+    <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6">
+        <div class="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full border-t-[10px] border-blue-900 text-center">
+            <h1 class="font-black text-3xl text-blue-900 mb-2 uppercase italic tracking-tighter">BTV 2026</h1>
+            <p class="text-[10px] font-bold text-slate-400 mb-8 uppercase tracking-widest">Masterclass Objectiviteit</p>
+            <input type="text" id="naam" placeholder="Voornaam" class="w-full border-2 p-4 rounded-2xl mb-4 font-bold text-center outline-none focus:border-blue-900 bg-slate-50">
+            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Start de les</button>
         </div>
     </div>
 
-    <div id="hoofd-scherm" class="hidden max-w-6xl mx-auto p-4 md:p-10 space-y-8 text-center">
-        
-        <header class="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border-b-4 border-blue-900">
-             <div class="font-black text-blue-900 uppercase italic text-[10px] tracking-widest flex items-center gap-4 italic">
-                Feedbackfeed
-                <button id="leer-knop" onclick="toggleLeeroverzicht()" class="hidden bg-green-500 text-white px-3 py-1 rounded-full animate-pulse border-2 border-green-200 shadow-sm text-[8px] font-black">DIT HEB JE GELEERD</button>
-             </div>
-             <button onclick="resetDatabase()" class="text-[8px] font-black text-red-400 uppercase border border-red-100 px-3 py-1 rounded-full hover:bg-red-500 hover:text-white transition-all text-center">Reset Database</button>
+    <div id="hoofd-scherm" class="hidden max-w-6xl mx-auto p-4 md:p-8">
+        <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm">
+            <button id="leer-knop" onclick="toggleLeeroverzicht()" class="hidden bg-emerald-500 text-white px-4 py-2 rounded-full text-[9px] font-black animate-bounce uppercase">Hulp bij beschrijven</button>
+            <button onclick="resetDatabase()" class="text-[8px] font-black text-rose-400 uppercase border border-rose-100 px-3 py-1 rounded-full hover:bg-rose-500 hover:text-white transition-all">Reset Database</button>
         </header>
 
-        <div class="grid md:grid-cols-2 gap-6 text-center">
-            <section class="bg-[#002d5e] text-white p-6 rounded-3xl shadow-xl border-l-[10px] border-yellow-500">
-                <h2 class="font-black uppercase text-[10px] mb-3 tracking-widest text-yellow-400 underline decoration-2 italic text-center">Informatie: Redenen van wetenschap</h2>
-                <div class="text-[11px] space-y-3 opacity-95 italic font-medium leading-relaxed text-center">
-                    <p>Beschrijf nooit emoties (zoals "verdrietig" of "paniek"). Dat zijn <b>aannames</b>.</p>
-                    <p>Beschrijf alleen de <b>wetenschap</b>: wat neem je zintuiglijk waar? Gebruik de actieve verleden tijd: "Ik zag...", "Ik hoorde...".</p>
-                </div>
-            </section>
-            <section class="bg-white p-6 rounded-3xl shadow-xl border-l-[10px] border-blue-900">
-                <h2 class="font-black uppercase text-[10px] mb-3 tracking-widest text-blue-900 underline decoration-2 italic text-center">Instructie</h2>
-                <div class="text-[11px] text-slate-600 space-y-3 font-bold text-center">
-                    <p>1. Kies een Casus en analyseer de gezichtsuitdrukking van de persoon.</p>
-                    <p>2. Schrijf je objectieve waarneming en dien deze in voor de livefeed.</p>
-                    <p>3. Geef feedback aan collega's: is hun tekst <b>Redenen van wetenschap</b> of een <b>Aanname</b>?</p>
-                </div>
-            </section>
-        </div>
-
-        <nav class="flex gap-1 overflow-x-auto pb-2 no-scrollbar justify-center">
-            <button onclick="switchCasus('1')" id="tab-1" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all whitespace-nowrap italic text-center">Casus 1</button>
-            <button onclick="switchCasus('2')" id="tab-2" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all whitespace-nowrap italic text-center">Casus 2</button>
-            <button onclick="switchCasus('3')" id="tab-3" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all whitespace-nowrap italic text-center">Casus 3</button>
-            <button onclick="switchCasus('4')" id="tab-4" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all whitespace-nowrap italic text-center">Casus 4</button>
-            <button onclick="switchCasus('5')" id="tab-5" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all whitespace-nowrap italic text-center">Casus 5</button>
-            <button onclick="switchCasus('6')" id="tab-6" class="tab-btn px-6 py-4 rounded-t-2xl font-black uppercase text-[10px] bg-slate-200 border-b-4 border-transparent transition-all whitespace-nowrap italic text-center">Casus 6</button>
-        </nav>
-
-        <div class="grid lg:grid-cols-2 gap-10 items-start text-center">
-            <section class="bg-white p-8 rounded-b-3xl rounded-tr-3xl shadow-2xl border-t-[10px] border-blue-900 text-center">
-                <p id="casus-titel" class="text-[10px] font-black text-blue-900 mb-4 bg-blue-50 p-3 rounded-lg tracking-widest text-center uppercase italic"></p>
-                <div class="h-80 mb-8 bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-50 shadow-inner">
+        <div class="grid lg:grid-cols-2 gap-8 items-start">
+            <section class="bg-white p-6 rounded-[2.5rem] shadow-xl border-t-[10px] border-blue-900">
+                <nav class="flex gap-1 overflow-x-auto mb-6 no-scrollbar">
+                    ${[1,2,3,4,5,6].map(n => `
+                        <button onclick="switchCasus('${n}')" id="tab-${n}" class="tab-btn px-4 py-2 rounded-xl font-black uppercase text-[10px] bg-slate-100 transition-all">Casus ${n}</button>
+                    `).join('')}
+                </nav>
+                <p id="casus-titel" class="text-[10px] font-black text-blue-900 mb-4 bg-blue-50 p-2 rounded text-center uppercase italic"></p>
+                <div class="aspect-video mb-6 bg-slate-100 rounded-2xl overflow-hidden border-2 border-slate-50">
                     <img id="casus-beeld" src="" class="w-full h-full object-cover">
                 </div>
-                <textarea id="pv-input" class="w-full h-40 border-2 border-slate-100 p-6 rounded-2xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs mb-4 shadow-inner text-center" placeholder=""></textarea>
-                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all text-center">Inleveren voor review</button>
+                <textarea id="pv-input" class="w-full h-32 border-2 border-slate-50 p-4 rounded-2xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs mb-4" placeholder=""></textarea>
+                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg hover:bg-blue-800 transition-all">Verstuur naar Feed</button>
             </section>
 
-            <section class="bg-slate-200/50 p-8 rounded-[40px] h-[750px] overflow-y-auto border-4 border-white shadow-inner text-center">
-                <h2 class="font-black text-blue-900 uppercase italic mb-6 text-[11px] tracking-widest flex items-center gap-3 italic justify-center">
-                    <span class="h-3 w-3 bg-green-500 rounded-full animate-pulse text-center"></span> Live Eenheidsfeed
-                </h2>
-                <div id="live-feed" class="space-y-4 text-center"></div>
+            <section class="bg-slate-200/50 p-6 rounded-[2.5rem] h-[800px] overflow-y-auto border-4 border-white shadow-inner">
+                <div id="live-feed"></div>
             </section>
         </div>
     </div>
