@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BTV 2026 - Random Duo Challenge</title>
+    <title>BTV 2026 - De Duo Challenge</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, onValue, push, update, increment, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, onValue, push, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // Firebase configuratie
         const firebaseConfig = {
             apiKey: "AIzaSyBRq1HFmhrpW_EMMZwpURrbTArz-L5iWT4",
             databaseURL: "https://pvaangifteinleveren-77dbe-default-rtdb.europe-west1.firebasedatabase.app/",
@@ -19,6 +20,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
+        // De 6 casussen met objectieve kenmerken
         const casusData = {
             '1': { e: 'Verdriet', img: 'verdriet.jpg', ph: "Beschrijf ogen, mond en handen...", k: "Rode ogen, traanvocht, zakdoekje." },
             '2': { e: 'Paniek', img: 'paniek.jpg', ph: "Beschrijf gezicht en houding...", k: "Handen in haar, oogwit zichtbaar, open mond." },
@@ -29,14 +31,14 @@
         };
 
         let assignedCasussen = [];
-        let currentStep = 0; // 0 = eerste casus, 1 = tweede casus, 2 = klaar
+        let currentStep = 0; 
 
+        // Inloggen en 2 unieke casussen toewijzen
         window.login = () => {
             const voornaam = document.getElementById('naam').value.trim();
-            if(!voornaam) return alert("Vul je voornaam in.");
+            if(!voornaam) return alert("Agent, voer je voornaam in.");
             window.voornaam = voornaam;
             
-            // Genereer 2 unieke random nummers tussen 1 en 6
             const ids = Object.keys(casusData);
             while(assignedCasussen.length < 2) {
                 let r = ids[Math.floor(Math.random() * ids.length)];
@@ -47,77 +49,71 @@
             document.getElementById('hoofd-scherm').classList.remove('hidden');
             loadCurrentCasus();
             initFeed();
+            initLearningFeed();
         };
 
+        // Laden van de huidige opdracht (1 of 2)
         function loadCurrentCasus() {
             if(currentStep >= 2) {
                 document.getElementById('input-section').innerHTML = `
-                    <div class="bg-blue-900 text-white p-10 rounded-[2.5rem] text-center shadow-2xl">
-                        <h2 class="text-2xl font-black mb-4 uppercase italic">Missie Voltooid!</h2>
-                        <p class="text-sm opacity-80 mb-6 font-bold">Je hebt twee casussen beschreven. Focus je nu op de feed en geef feedback aan je collega's.</p>
-                        <div class="text-4xl animate-bounce">⮕</div>
+                    <div class="bg-blue-900 text-white p-10 rounded-[2.5rem] text-center shadow-2xl border-b-8 border-yellow-500">
+                        <h2 class="text-2xl font-black mb-4 uppercase italic tracking-tighter">Missie Voltooid!</h2>
+                        <p class="text-sm opacity-90 mb-6 font-medium leading-relaxed">Beide foto's zijn beschreven. Bekijk nu de feed, geef feedback aan anderen en noteer je eigen leerpunten.</p>
+                        <div class="text-5xl animate-bounce">⮕</div>
                     </div>`;
                 return;
             }
-
             const id = assignedCasussen[currentStep];
             window.activeCasus = id;
             document.getElementById('step-indicator').innerText = `OPDRACHT ${currentStep + 1} VAN 2`;
-            document.getElementById('casus-titel').innerText = "ANALYSEER DEZE SITUATIE";
             document.getElementById('casus-beeld').src = casusData[id].img;
             document.getElementById('pv-input').placeholder = casusData[id].ph;
             document.getElementById('pv-input').value = "";
         }
 
+        // PV versturen naar Firebase
         window.verstuurPV = () => {
             const tekst = document.getElementById('pv-input').value.trim();
-            if(tekst.length < 5) return alert("Typ eerst je waarneming.");
-            
+            if(tekst.length < 5) return alert("Beschrijf de situatie eerst objectief.");
             push(ref(db, `btv_2026/live_feed`), {
                 naam: window.voornaam,
                 tekst: tekst,
                 correcteCasus: window.activeCasus,
-                score_obj: 0,
-                score_subj: 0,
+                comments: {},
+                leerpunt: "",
                 tijd: Date.now()
             });
-            
             currentStep++;
-            alert(currentStep === 1 ? "Top! Nu de tweede casus..." : "Beide casussen ingeleverd!");
             loadCurrentCasus();
         };
 
+        // Feedback opslaan
+        window.saveTextFeedback = (postId) => {
+            const fbText = document.getElementById(`input-fb-${postId}`).value.trim();
+            if(fbText.length < 2) return alert("Voer feedback in.");
+            push(ref(db, `btv_2026/live_feed/${postId}/comments`), { van: window.voornaam, bericht: fbText });
+            document.getElementById(`input-fb-${postId}`).value = ""; 
+        };
+
+        // Match controleren (Kiezen van de juiste foto bij de tekst)
         window.checkMatch = (postId, gekozenId, werkelijkeId) => {
             if(gekozenId === werkelijkeId) {
-                document.getElementById(`match-zone-${postId}`).innerHTML = `
-                    <div class="bg-emerald-500 p-4 rounded-2xl flex items-center justify-between text-white shadow-lg">
-                        <div class="flex items-center gap-3">
-                            <img src="${casusData[gekozenId].img}" class="w-10 h-10 rounded object-cover border border-white/20">
-                            <p class="text-[9px] font-black uppercase tracking-tighter">Correcte Match! Beoordeel nu de tekst:</p>
-                        </div>
-                    </div>`;
+                document.getElementById(`match-zone-${postId}`).innerHTML = `<div class="bg-emerald-600 p-3 rounded-xl text-white text-[9px] font-black uppercase text-center shadow-inner">Match gevonden! Geef nu je feedback:</div>`;
                 document.getElementById(`feedback-zone-${postId}`).classList.remove('hidden');
             } else {
-                alert("FOUT! Deze tekst beschrijft een ander beeld. Kijk kritisch naar de feiten!");
+                alert("Niet correct. Deze tekst hoort bij een andere foto!");
             }
         };
 
-        window.giveFeedback = (postId, type) => {
-            update(ref(db, `btv_2026/live_feed/${postId}`), {
-                [type === 'obj' ? 'score_obj' : 'score_subj']: increment(1)
-            });
+        // Eigen leerpunt opslaan (Anoniem naar centrale feed)
+        window.saveLeerpunt = (postId) => {
+            const lpText = document.getElementById(`input-lp-${postId}`).value.trim();
+            if(lpText.length < 5) return alert("Formuleer je leerpunt iets vollediger.");
+            update(ref(db, `btv_2026/live_feed/${postId}`), { leerpunt: lpText });
+            push(ref(db, `btv_2026/leermomenten_anoniem`), { tekst: lpText, tijd: Date.now() });
         };
 
-        window.toggleLeeroverzicht = () => {
-            document.getElementById('leer-modal').classList.toggle('hidden');
-            document.getElementById('tabel-body').innerHTML = Object.keys(casusData).map(key => `
-                <tr class="border-b text-[10px]"><td class="p-2 font-black text-blue-900 uppercase">Casus ${key}</td><td class="p-2 italic text-slate-600">${casusData[key].k}</td></tr>`).join('');
-        };
-
-        window.resetDatabase = () => {
-            if(confirm("Alle inzendingen wissen?")) remove(ref(db, `btv_2026`));
-        };
-
+        // Live feed van alle posts
         function initFeed() {
             onValue(ref(db, `btv_2026/live_feed`), (snap) => {
                 const container = document.getElementById('live-feed');
@@ -127,82 +123,130 @@
 
                 Object.keys(data).reverse().forEach(key => {
                     const post = data[key];
+                    const isEigenPost = post.naam === window.voornaam;
+                    
                     container.innerHTML += `
-                        <div class="bg-white p-6 rounded-[2rem] shadow-sm border-2 mb-6 border-slate-100" id="post-${key}">
-                            <div class="flex justify-between items-center mb-4">
-                                <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">${post.naam}</span>
-                                <div class="flex gap-2 text-[9px] font-black">
-                                    <span class="text-emerald-500">✓ ${post.score_obj || 0}</span>
-                                    <span class="text-rose-500">✗ ${post.score_subj || 0}</span>
-                                </div>
+                        <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border-2 mb-8 ${isEigenPost ? 'border-yellow-400 ring-4 ring-yellow-50/50' : 'border-slate-100'}">
+                            <div class="flex justify-between items-center mb-4 font-black uppercase italic text-[10px]">
+                                <span class="${isEigenPost ? 'text-yellow-600' : 'text-slate-400'}">Agent: ${post.naam} ${isEigenPost ? '(JIJ)' : ''}</span>
                             </div>
-                            <p class="text-sm italic mb-6 text-slate-700 border-l-4 border-blue-900 pl-4 py-2 bg-slate-50 rounded-r-xl leading-relaxed">"${post.tekst}"</p>
+                            <p class="text-sm italic mb-6 text-slate-800 border-l-4 border-blue-900 pl-4 py-2 bg-slate-50 leading-relaxed rounded-r-xl tracking-tight">"${post.tekst}"</p>
                             
-                            <div id="match-zone-${key}" class="space-y-3">
-                                <p class="text-[8px] font-black text-center text-slate-400 uppercase">Kies de bijbehorende foto:</p>
+                            <div id="match-zone-${key}" class="${isEigenPost ? 'hidden' : ''} space-y-3">
+                                <p class="text-[8px] font-black text-slate-400 uppercase text-center tracking-widest">Bij welke foto hoort dit?</p>
                                 <div class="grid grid-cols-3 gap-2">
-                                    ${[1,2,3,4,5,6].map(n => `
-                                        <button onclick="checkMatch('${key}', '${n}', '${post.correcteCasus}')" class="relative rounded-xl overflow-hidden border-2 border-slate-100 hover:border-blue-500 transition-all">
-                                            <img src="${casusData[n].img}" class="w-full h-12 object-cover">
-                                        </button>
-                                    `).join('')}
+                                    ${[1,2,3,4,5,6].map(n => `<button onclick="checkMatch('${key}', '${n}', '${post.correcteCasus}')" class="rounded-xl overflow-hidden border-2 border-slate-100 hover:border-blue-900 transition-all shadow-sm"><img src="${casusData[n].img}" class="w-full h-10 object-cover"></button>`).join('')}
                                 </div>
                             </div>
 
-                            <div id="feedback-zone-${key}" class="hidden mt-4 pt-4 border-t flex gap-2">
-                                <button onclick="giveFeedback('${key}', 'obj')" class="flex-1 bg-emerald-500 text-white text-[8px] font-black p-3 rounded-xl uppercase">Redenen</button>
-                                <button onclick="giveFeedback('${key}', 'subj')" class="flex-1 bg-rose-500 text-white text-[8px] font-black p-3 rounded-xl uppercase">Aanname</button>
+                            <div id="feedback-zone-${key}" class="${isEigenPost ? '' : 'hidden'} mt-4 pt-4 border-t border-slate-100">
+                                <div id="comments-${key}" class="space-y-2 mb-4">
+                                    ${post.comments ? Object.values(post.comments).map(c => `<div class="bg-blue-50 p-3 rounded-2xl text-[10px]"><span class="font-black text-blue-900 uppercase text-[8px]">${c.van}:</span> <span class="text-slate-700 font-medium">${c.bericht}</span></div>`).join('') : '<p class="text-[9px] italic text-slate-300 text-center uppercase tracking-widest">Wacht op feedback van collega...</p>'}
+                                </div>
+                                
+                                ${isEigenPost && !post.leerpunt ? `
+                                    <div class="bg-yellow-50 p-4 rounded-[1.5rem] border-2 border-yellow-200">
+                                        <p class="text-[9px] font-black text-yellow-800 uppercase mb-3 italic">Reflectie: Wat is je leerpunt (Redenen/OVT/OBJ)?</p>
+                                        <textarea id="input-lp-${key}" class="w-full p-3 rounded-xl text-xs border-none outline-none bg-white shadow-inner focus:ring-2 ring-yellow-300" placeholder="Bijv: Ik moet beter letten op de OVT..."></textarea>
+                                        <button onclick="saveLeerpunt('${key}')" class="mt-3 w-full bg-yellow-500 text-white p-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-yellow-600 transition-all shadow-md">Sla leerpunt op</button>
+                                    </div>
+                                ` : ''}
+
+                                ${post.leerpunt ? `<div class="bg-emerald-600 p-3 rounded-xl text-white text-[10px] font-bold italic shadow-lg">Mijn leerpunt: ${post.leerpunt}</div>` : ''}
+
+                                ${!isEigenPost ? `
+                                    <div class="mt-2">
+                                        <textarea id="input-fb-${key}" class="w-full p-3 rounded-xl text-xs border-2 border-slate-50 outline-none focus:border-blue-900 bg-slate-100 shadow-inner" placeholder="Feedback op Wetenschap, OVT en Objectiviteit..."></textarea>
+                                        <button onclick="saveTextFeedback('${key}')" class="mt-2 w-full bg-blue-900 text-white p-2 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-md">Verstuur Feedback</button>
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>`;
                 });
             });
         }
+
+        // Livefeed voor de anonieme leerpunten aan de rechterkant
+        function initLearningFeed() {
+            onValue(ref(db, `btv_2026/leermomenten_anoniem`), (snap) => {
+                const list = document.getElementById('anonieme-leertips');
+                list.innerHTML = "";
+                const data = snap.val();
+                if(!data) return;
+                Object.values(data).reverse().forEach(l => {
+                    list.innerHTML += `<div class="bg-white p-4 rounded-2xl text-[11px] font-semibold text-blue-900 border-l-8 border-blue-900 shadow-sm animate-fade-in-down italic leading-relaxed">“${l.tekst}”</div>`;
+                });
+            });
+        }
+
+        window.resetDatabase = () => { if(confirm("Alle data wissen voor een nieuwe les?")) remove(ref(db, `btv_2026`)); };
+        window.toggleLeeroverzicht = () => { document.getElementById('leer-modal').classList.toggle('hidden'); document.getElementById('tabel-body').innerHTML = Object.keys(casusData).map(key => `<tr class="border-b text-[10px]"><td class="p-2 font-black text-blue-900 uppercase">Casus ${key}</td><td class="p-2 italic text-slate-600">${casusData[key].k}</td></tr>`).join(''); };
     </script>
+    <style>
+        @keyframes fade-in-down { 0% { opacity: 0; transform: translateY(-10px); } 100% { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-900">
 
-    <div id="leer-modal" class="fixed inset-0 bg-black/80 z-[60] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] max-w-2xl w-full p-8 shadow-2xl overflow-y-auto max-h-[85vh]">
-            <h2 class="font-black text-xl text-blue-900 mb-4 uppercase italic">Objectieve Kenmerken</h2>
-            <table class="w-full text-left border-collapse">
-                <thead><tr class="text-[9px] uppercase border-b-2 border-blue-900"><th class="p-2">Casus</th><th class="p-2">Wetenschap</th></tr></thead>
+    <div id="leer-modal" class="fixed inset-0 bg-black/90 z-[60] hidden flex items-center justify-center p-4 text-center backdrop-blur-sm">
+        <div class="bg-white rounded-[3rem] max-w-2xl w-full p-10 shadow-2xl border-t-[12px] border-emerald-500">
+            <h2 class="font-black text-2xl text-blue-900 mb-6 uppercase italic tracking-tighter">Objectieve Kenmerken</h2>
+            <table class="w-full text-left mb-6 border-collapse">
                 <tbody id="tabel-body"></tbody>
             </table>
-            <button onclick="toggleLeeroverzicht()" class="mt-6 w-full bg-[#002d5e] text-white p-4 rounded-2xl font-black uppercase text-xs">Terug</button>
+            <button onclick="toggleLeeroverzicht()" class="w-full bg-blue-900 text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl">Terug naar de Missie</button>
         </div>
     </div>
 
-    <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6 text-center">
-        <div class="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full border-t-[12px] border-yellow-500">
-            <h1 class="font-black text-3xl text-blue-900 mb-2 uppercase italic tracking-tighter">BTV 2026</h1>
-            <p class="text-[10px] font-bold text-slate-400 mb-8 uppercase tracking-[0.2em]">Duo-Challenge Objectiviteit</p>
-            <input type="text" id="naam" placeholder="Jouw voornaam" class="w-full border-2 p-4 rounded-2xl mb-4 font-bold text-center outline-none focus:border-blue-900 bg-slate-50">
-            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-5 rounded-2xl font-black uppercase tracking-widest shadow-xl">Start de les</button>
+    <div id="auth-scherm" class="fixed inset-0 bg-[#002d5e] z-50 flex items-center justify-center p-6">
+        <div class="bg-white p-12 rounded-[4rem] shadow-2xl max-w-sm w-full text-center border-b-[15px] border-yellow-500">
+            <h1 class="font-black text-4xl text-blue-900 mb-2 uppercase italic tracking-tighter">BTV 2026</h1>
+            <p class="text-[10px] font-bold text-slate-400 mb-10 uppercase tracking-[0.3em]">Duo-Challenge Objectiviteit</p>
+            <input type="text" id="naam" placeholder="Jouw voornaam" class="w-full border-4 border-slate-50 p-5 rounded-3xl mb-6 font-bold text-center text-lg outline-none focus:border-blue-900 bg-slate-50 transition-all">
+            <button onclick="login()" class="w-full bg-[#002d5e] text-white p-6 rounded-3xl font-black uppercase tracking-widest shadow-2xl hover:scale-105 transition-transform active:scale-95">Start de les</button>
         </div>
     </div>
 
-    <div id="hoofd-scherm" class="hidden max-w-6xl mx-auto p-4 md:p-10">
-        <header class="flex justify-between items-center mb-8 bg-white p-4 rounded-2xl shadow-sm border-b-2 border-blue-900">
-             <button onclick="toggleLeeroverzicht()" id="leer-knop" class="hidden bg-emerald-500 text-white px-4 py-2 rounded-full text-[9px] font-black uppercase italic animate-pulse">Hulp nodig?</button>
-             <button onclick="resetDatabase()" class="text-[8px] font-black text-rose-400 uppercase border border-rose-100 px-3 py-1 rounded-full hover:bg-rose-500 hover:text-white transition-all">Sessie Reset</button>
-        </header>
+    <div id="hoofd-scherm" class="hidden max-w-[1600px] mx-auto p-4 md:p-10 flex flex-col lg:flex-row gap-10">
+        
+        <div class="flex-1 space-y-8">
+            <header class="flex justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border-b-4 border-blue-900">
+                <button onclick="toggleLeeroverzicht()" class="bg-emerald-500 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase italic tracking-widest animate-pulse shadow-lg">Checklist Hulp</button>
+                <h2 class="hidden md:block font-black text-blue-900/20 uppercase text-xs tracking-[0.5em]">Operation Objectivity</h2>
+                <button onclick="resetDatabase()" class="text-[9px] font-black text-rose-400 uppercase border-2 border-rose-50 px-4 py-2 rounded-full hover:bg-rose-500 hover:text-white transition-all shadow-sm">Sessie Reset</button>
+            </header>
 
-        <div class="grid lg:grid-cols-2 gap-10 items-start">
-            <section id="input-section" class="bg-white p-8 rounded-[3rem] shadow-xl border-t-[12px] border-blue-900">
-                <span id="step-indicator" class="text-[9px] font-black text-blue-900/40 uppercase tracking-widest mb-2 block"></span>
-                <p id="casus-titel" class="text-[11px] font-black text-blue-900 mb-4 bg-blue-50 p-3 rounded-xl tracking-widest uppercase italic text-center"></p>
-                <div class="aspect-video mb-8 bg-slate-100 rounded-3xl overflow-hidden border-2 border-slate-50">
+            <section id="input-section" class="bg-white p-10 rounded-[4rem] shadow-2xl border-t-[15px] border-blue-900">
+                <span id="step-indicator" class="text-[10px] font-black text-blue-900/30 uppercase mb-4 block tracking-[0.2em] text-center"></span>
+                <div class="aspect-video mb-8 bg-slate-200 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-inner">
                     <img id="casus-beeld" src="" class="w-full h-full object-cover">
                 </div>
-                <textarea id="pv-input" class="w-full h-40 border-2 border-slate-100 p-6 rounded-3xl outline-none focus:border-blue-900 bg-slate-50 font-mono text-xs mb-4 shadow-inner" placeholder=""></textarea>
-                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-5 rounded-3xl font-black uppercase tracking-widest shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all">Inleveren voor review</button>
+                <textarea id="pv-input" class="w-full h-40 border-4 border-slate-50 p-6 rounded-[2rem] outline-none focus:border-blue-900 bg-slate-50 text-sm font-medium mb-6 shadow-inner resize-none transition-all" placeholder=""></textarea>
+                <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-yellow-500 hover:text-blue-900 transition-all text-sm">Verstuur voor review</button>
             </section>
 
-            <section class="bg-slate-200/50 p-6 rounded-[3rem] h-[800px] overflow-y-auto border-4 border-white shadow-inner">
-                <h2 class="font-black text-blue-900 uppercase italic mb-6 text-[10px] tracking-widest text-center">Live Feedbackfeed</h2>
+            <section class="bg-slate-200/40 p-8 rounded-[4rem] h-[600px] overflow-y-auto shadow-inner border-4 border-white">
+                <h2 class="font-black text-blue-900 uppercase italic mb-8 text-[11px] text-center tracking-[0.3em] opacity-40">Live Review Feed</h2>
                 <div id="live-feed"></div>
             </section>
         </div>
+
+        <aside class="w-full lg:w-[400px] space-y-6">
+            <div class="bg-[#002d5e] p-8 rounded-[4rem] shadow-[0_20px_50px_rgba(0,45,94,0.3)] h-[900px] flex flex-col sticky top-10 border-b-[15px] border-emerald-500">
+                <h2 class="font-black text-emerald-400 uppercase italic mb-2 text-xl text-center tracking-tighter">Live Inzichten</h2>
+                <p class="text-[9px] text-white/40 text-center uppercase mb-8 font-black tracking-widest leading-tight">Anonieme leermomenten van de hele groep</p>
+                
+                <div id="anonieme-leertips" class="space-y-6 overflow-y-auto flex-1 pr-3 pb-10">
+                    </div>
+                
+                <div class="mt-auto pt-6 text-center border-t border-white/10">
+                    <p class="text-white/20 text-[8px] font-black uppercase tracking-[0.4em]">BTV 2026 Management System</p>
+                </div>
+            </div>
+        </aside>
+
     </div>
 </body>
 </html>
