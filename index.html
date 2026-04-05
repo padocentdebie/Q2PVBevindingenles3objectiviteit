@@ -102,19 +102,20 @@
             push(ref(db, `btv_2026/leermomenten_anoniem`), { tekst: lpText, tijd: Date.now() });
         };
 
-        // DE VERBETERDE FEED-FUNCTIE (VOORKOMT VERSPRINGEN)
         function initFeed() {
             const container = document.getElementById('live-feed');
             onValue(ref(db, `btv_2026/live_feed`), (snap) => {
                 const data = snap.val();
-                if(!data) return;
+                if(!data) {
+                    container.innerHTML = "";
+                    return;
+                }
 
                 Object.keys(data).reverse().forEach(key => {
                     const post = data[key];
                     const isEigenPost = post.naam === window.voornaam;
                     let postDiv = document.getElementById(`post-${key}`);
 
-                    // Als de post nog niet op het scherm staat, maak hem aan
                     if (!postDiv) {
                         postDiv = document.createElement('div');
                         postDiv.id = `post-${key}`;
@@ -122,7 +123,6 @@
                         container.appendChild(postDiv);
                     }
 
-                    // Update alleen de inhoud, maar behoud de focus als iemand typt
                     const activeEl = document.activeElement;
                     if (activeEl && activeEl.id && activeEl.id.includes(key)) return;
 
@@ -135,7 +135,7 @@
                         <div id="match-zone-${key}" class="${isEigenPost || (post.comments) ? 'hidden' : ''} space-y-3">
                             <p class="text-[8px] font-black text-slate-400 uppercase text-center tracking-widest">Bij welke foto hoort dit?</p>
                             <div class="grid grid-cols-3 gap-2">
-                                ${[1,2,3,4,5,6].map(n => `<button onclick="checkMatch('${key}', '${n}', '${post.correcteCasus}')" class="rounded-xl overflow-hidden border-2 border-slate-100 hover:border-blue-900 transition-all shadow-sm"><img src="${casusData[n].img}" class="w-full h-10 object-cover"></button>`).join('')}
+                                ${[1,2,3,4,5,6].map(n => `<button onclick="checkMatch('${key}', '${n}', '${post.correcteCasus}')" class="rounded-xl overflow-hidden border-2 border-slate-100 hover:border-blue-900 transition-all shadow-sm"><img src="${casusData[n].img}" class="w-full h-10 object-contain bg-slate-100"></button>`).join('')}
                             </div>
                         </div>
 
@@ -171,7 +171,14 @@
             });
         }
 
-        window.resetDatabase = () => { if(confirm("Alle data wissen?")) remove(ref(db, `btv_2026`)); };
+        window.resetDatabase = () => { 
+            if(confirm("Alle data wissen?")) {
+                remove(ref(db, `btv_2026`)).then(() => {
+                    location.reload();
+                });
+            } 
+        };
+        
         window.toggleLeeroverzicht = () => { document.getElementById('leer-modal').classList.toggle('hidden'); document.getElementById('tabel-body').innerHTML = Object.keys(casusData).map(key => `<tr class="border-b text-[10px]"><td class="p-2 font-black text-blue-900 uppercase">Casus ${key}</td><td class="p-2 italic text-slate-600">${casusData[key].k}</td></tr>`).join(''); };
     </script>
 </head>
@@ -201,8 +208,8 @@
 
             <section id="input-section" class="bg-white p-10 rounded-[4rem] shadow-2xl border-t-[15px] border-blue-900">
                 <span id="step-indicator" class="text-[10px] font-black text-blue-900/30 uppercase mb-4 block text-center tracking-[0.2em]"></span>
-                <div class="aspect-video mb-8 bg-slate-200 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-inner">
-                    <img id="casus-beeld" src="" class="w-full h-full object-cover">
+                <div class="aspect-video mb-8 bg-slate-200 rounded-[2.5rem] overflow-hidden border-4 border-white shadow-inner flex items-center justify-center">
+                    <img id="casus-beeld" src="" class="max-w-full max-h-full object-contain">
                 </div>
                 <textarea id="pv-input" class="w-full h-40 border-4 border-slate-50 p-6 rounded-[2rem] outline-none focus:border-blue-900 bg-slate-50 text-sm mb-6 shadow-inner resize-none transition-all"></textarea>
                 <button onclick="verstuurPV()" class="w-full bg-[#002d5e] text-white py-5 rounded-[2rem] font-black uppercase tracking-[0.2em] shadow-xl text-sm">Verstuur voor review</button>
